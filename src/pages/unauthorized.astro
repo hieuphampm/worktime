@@ -1,0 +1,4 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+<AppLayout title="Không có quyền"><div style="max-width:560px;margin:15vh auto;text-align:center"><div class="stat-icon" style="margin:auto;width:52px;height:52px">!</div><h1>Không có quyền truy cập</h1><p class="muted">Trang này chỉ dành cho người có quyền phù hợp.</p><a class="primary" href={Astro.locals.profile?.role === 'ADMIN' ? '/admin' : '/employee'}>Về trang chủ</a></div></AppLayout>

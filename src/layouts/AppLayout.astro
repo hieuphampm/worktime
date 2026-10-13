@@ -1,0 +1,27 @@
+---
+import '../styles/global.css';
+import type { Profile } from '../lib/database.types';
+const { title = 'Chấm công', profile = null, active = '' } = Astro.props as { title?: string; profile?: Profile | null; active?: string };
+const adminLinks = [ ['/admin', 'Tổng quan'], ['/admin/attendance', 'Chấm công'], ['/admin/employees', 'Nhân viên'], ['/admin/reports', 'Báo cáo'], ['/admin/audit', 'Nhật ký'], ['/admin/settings', 'Cài đặt'] ];
+---
+<!doctype html>
+<html lang="vi">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="theme-color" content="#f4f7fb" /><title>{title} · Workday</title></head>
+  <body>
+    {profile && <aside class="sidebar">
+      <a class="brand" href={profile.role === 'ADMIN' ? '/admin' : '/employee'}><span class="brand-mark">W</span><span>workday<small>ATTENDANCE</small></span></a>
+      <div class="side-caption">MENU</div>
+      {profile.role === 'ADMIN' ? <nav>{adminLinks.map(([href, label]) => <a class:list-active={active === href} href={href}><span class="nav-dot"></span>{label}</a>)}</nav> : <nav><a class:list-active={active === '/employee'} href="/employee"><span class="nav-dot"></span>Tổng quan</a><a href="/employee/history"><span class="nav-dot"></span>Lịch sử của tôi</a></nav>}
+      <div class="sidebar-bottom"><div class="avatar">{profile.display_name.slice(0, 1).toLocaleUpperCase()}</div><div class="user-mini"><strong>{profile.display_name}</strong><span>{profile.role === 'ADMIN' ? 'Quản trị viên' : profile.employee_id}</span></div><form method="post" action="/api/auth/logout"><button class="icon-button" aria-label="Đăng xuất" title="Đăng xuất">↗</button></form></div>
+    </aside>}
+    <main class={profile ? 'main-content' : 'main-content main-guest'}><slot /></main>
+    <script>
+      document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((form) => form.addEventListener('submit', (event) => {
+        const message = form.dataset.confirm || 'Bạn chắc chắn muốn tiếp tục?';
+        if (!window.confirm(message)) event.preventDefault();
+      }));
+      const notice = document.querySelector<HTMLElement>('[data-notice]');
+      if (notice) window.setTimeout(() => notice.remove(), 4200);
+    </script>
+  </body>
+</html>

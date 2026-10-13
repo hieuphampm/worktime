@@ -1,0 +1,30 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+if (Astro.locals.profile) return Astro.redirect(Astro.locals.profile.role === 'ADMIN' ? '/admin' : '/employee');
+---
+<AppLayout title="Đăng nhập">
+  <div class="login-wrap"><section class="login-card">
+    <a class="brand" href="/login"><span class="brand-mark">W</span><span>workday<small>ATTENDANCE</small></span></a>
+    <h1>Chào mừng trở lại</h1><p>Đăng nhập để quản lý ngày làm việc của bạn.</p>
+    <div class="notice error" data-error hidden></div>
+    <form data-login>
+      <label>Email công ty<input type="email" name="email" autocomplete="username" placeholder="ban@congty.vn" required /></label>
+      <label>Mật khẩu<input type="password" name="password" autocomplete="current-password" required /></label>
+      <button class="primary" type="submit">Đăng nhập</button>
+    </form>
+    <p class="small" style="margin-top:18px;margin-bottom:0">Tài khoản được tạo bởi quản trị viên.</p>
+  </section></div>
+  <script>
+    const form = document.querySelector<HTMLFormElement>('[data-login]')!;
+    const errorBox = document.querySelector<HTMLElement>('[data-error]')!;
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); const button = form.querySelector<HTMLButtonElement>('button')!; button.disabled = true; button.textContent = 'Đang đăng nhập…'; errorBox.hidden = true;
+      try {
+        const payload = Object.fromEntries(new FormData(form));
+        const response = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Đăng nhập thất bại');
+        window.location.assign(result.redirect);
+      } catch (error) { errorBox.textContent = error instanceof Error ? error.message : 'Không thể đăng nhập'; errorBox.hidden = false; button.disabled = false; button.textContent = 'Đăng nhập'; }
+    });
+  </script>
+</AppLayout>

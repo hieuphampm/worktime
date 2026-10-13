@@ -1,0 +1,15 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { serviceClient } from '../../lib/supabase/server';
+const params=Astro.url.searchParams; const page=Math.max(1,Number(params.get('page')||1)); const pageSize=30;
+const {data:rows,count}=await serviceClient().from('attendance').select('*',{count:'exact'}).eq('employee_id',Astro.locals.user!.id).order('attendance_date',{ascending:false}).range((page-1)*pageSize,page*pageSize-1);
+const settings=(await serviceClient().from('company_settings').select('timezone').eq('id',1).single()).data; const zone=settings?.timezone||'Asia/Ho_Chi_Minh';
+const fmt=(v:string|null)=>v?new Date(v).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',timeZone:zone}):'—';
+---
+<AppLayout title="Lịch sử của tôi" profile={Astro.locals.profile} active="/employee">
+  <header class="page-head"><div><div class="eyebrow">Chấm công cá nhân</div><h1>Lịch sử của tôi</h1><p>Các bản ghi chỉ bạn và quản trị viên có thể xem.</p></div><a class="secondary" href="/employee">← Tổng quan</a></header>
+  <section class="table-panel"><div class="panel-title"><h2>Lịch sử chấm công</h2><span>{count||0} bản ghi</span></div><div class="table-scroll"><table><thead><tr><th>Ngày</th><th>Giờ vào</th><th>Giờ ra</th><th>Thời lượng</th><th>Trạng thái</th><th>Công</th><th>Ghi chú</th></tr></thead><tbody>
+  {(rows||[]).map(r=><tr><td><strong>{r.attendance_date}</strong></td><td>{fmt(r.check_in_at)}</td><td>{fmt(r.check_out_at)}</td><td>{r.working_duration_minutes===null?'Chưa hoàn tất':`${Math.floor(r.working_duration_minutes/60)}g ${r.working_duration_minutes%60}p`}</td><td>{r.status==='FULL_DAY'?'Đủ công':r.status==='HALF_DAY'?'Nửa buổi':r.status==='OFF'?'Off':'Chưa phân loại'}</td><td>{r.attendance_credit??'—'}</td><td>{r.notes||'—'}</td></tr>)}
+  {!rows?.length&&<tr><td colspan="7"><div class="empty">Chưa có bản ghi trong lịch sử.</div></td></tr>}
+  </tbody></table></div><div class="pagination"><span>Trang {page} · {count||0} kết quả</span><div>{page>1&&<a href={`?page=${page-1}`}>← Trước</a>}{(count||0)>page*pageSize&&<a href={`?page=${page+1}`}>Sau →</a>}</div></div></section>
+</AppLayout>

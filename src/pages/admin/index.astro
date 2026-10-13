@@ -1,0 +1,29 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { serviceClient } from '../../lib/supabase/server';
+import { companyDate } from '../../lib/attendance';
+import { serverEnv } from '../../lib/env';
+const db = serviceClient();
+const { data: settings } = await db.from('company_settings').select('*').eq('id',1).single();
+const today = companyDate(new Date(), settings?.timezone || serverEnv().timezone);
+const [{count: employees}, checkedIn, checkedOut, fullDay, halfDay, off, incomplete, {data: recent}] = await Promise.all([
+  db.from('profiles').select('*', {count:'exact', head:true}).eq('role','EMPLOYEE').eq('is_active',true),
+  db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).not('check_in_at','is',null),
+  db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).not('check_out_at','is',null),
+  db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).eq('status','FULL_DAY'),
+  db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).eq('status','HALF_DAY'),
+  db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).eq('status','OFF'),
+  db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).not('check_in_at','is',null).is('check_out_at',null),
+  db.from('attendance').select('*, profile:profiles!attendance_employee_id_fkey(employee_id,display_name,department)').order('attendance_date',{ascending:false}).limit(8),
+]);
+const cards = [ ['Nhân viên đang hoạt động', employees || 0, 'Tài khoản nhân viên'], ['Đã chấm công vào', checkedIn.count || 0, `Ngày ${today}`], ['Đã chấm công ra', checkedOut.count || 0, 'Hoàn thành ca làm'], ['Bản ghi chưa hoàn tất', incomplete.count || 0, 'Cần theo dõi'], ['Đủ công', fullDay.count || 0, 'Trạng thái hôm nay'], ['Nửa buổi', halfDay.count || 0, 'Trạng thái hôm nay'], ['Off', off.count || 0, 'Trạng thái hôm nay'] ];
+const label = {FULL_DAY:'Đủ công', HALF_DAY:'Nửa buổi', OFF:'Off'} as const;
+---
+<AppLayout title="Tổng quan" profile={Astro.locals.profile} active="/admin">
+  <header class="page-head"><div><div class="eyebrow">Tổng quan · {today}</div><h1>Chào buổi sáng, {Astro.locals.profile?.display_name}</h1><p>Tình hình chấm công và hoạt động nhân sự hôm nay.</p></div><a class="primary" href="/admin/attendance">Xem chấm công →</a></header>
+  <section class="cards">{cards.map(([name,value,caption],i)=><article class="stat-card"><div class="stat-top"><span>{name}</span><span class="stat-icon">{['♙','↘','↗','◷','✓','½','○'][i]}</span></div><div class="stat-value">{value}</div><div class="stat-foot">{caption}</div></article>)}</section>
+  <section class="table-panel"><div class="panel-title"><h2>Hoạt động chấm công gần đây</h2><a class="small" href="/admin/attendance">Tất cả bản ghi →</a></div><div class="table-scroll"><table><thead><tr><th>Nhân viên</th><th>Phòng ban</th><th>Ngày</th><th>Giờ vào</th><th>Giờ ra</th><th>Trạng thái</th></tr></thead><tbody>
+  {(recent||[]).map(row=><tr><td><div class="person"><span class="person-mark">{row.profile?.display_name?.slice(0,1)}</span><span><strong>{row.profile?.display_name}</strong><br/><span class="muted small">{row.profile?.employee_id}</span></span></div></td><td>{row.profile?.department||'—'}</td><td>{row.attendance_date}</td><td>{row.check_in_at?new Date(row.check_in_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',timeZone:settings?.timezone||'Asia/Ho_Chi_Minh'}):'—'}</td><td>{row.check_out_at?new Date(row.check_out_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',timeZone:settings?.timezone||'Asia/Ho_Chi_Minh'}):'—'}</td><td>{row.check_in_at&&!row.check_out_at?<span class="badge badge-incomplete">Chưa hoàn tất</span>:row.status?<span class:list={{badge:true,'badge-full':row.status==='FULL_DAY','badge-half':row.status==='HALF_DAY','badge-off':row.status==='OFF'}}>{label[row.status]}</span>:<span class="muted">Chưa phân loại</span>}</td></tr>)}
+  {!recent?.length&&<tr><td colspan="6"><div class="empty">Chưa có dữ liệu chấm công.</div></td></tr>}
+  </tbody></table></div></section>
+</AppLayout>

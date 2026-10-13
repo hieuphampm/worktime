@@ -1,0 +1,4 @@
+---
+Astro.response.status = Astro.locals.profile ? 302 : 200;
+return Astro.locals.profile ? Astro.redirect(Astro.locals.profile.role === 'ADMIN' ? '/admin' : '/employee') : Astro.redirect('/login');
+---

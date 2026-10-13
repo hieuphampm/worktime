@@ -1,0 +1,22 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { serviceClient } from '../../lib/supabase/server';
+const {data:settings}=await serviceClient().from('company_settings').select('*').eq('id',1).single();
+const holidays=(settings?.holidays||[]).join(', ');
+---
+<AppLayout title="Cài đặt công ty" profile={Astro.locals.profile} active="/admin/settings">
+  <header class="page-head"><div><div class="eyebrow">Quản trị · Cấu hình</div><h1>Cài đặt công ty</h1><p>Múi giờ quyết định ngày làm việc và cách hiển thị giờ chấm công.</p></div></header>
+  <div class="notice" data-setting-message hidden></div>
+  <section class="form-panel"><h2>Quy tắc ngày làm việc</h2><form class="form-grid" data-settings>
+    <label class="wide">Tên công ty<input name="company_name" required maxlength="160" value={settings?.company_name||'Công ty'}/></label>
+    <label>Múi giờ IANA<input name="timezone" required value={settings?.timezone||'Asia/Ho_Chi_Minh'} placeholder="Asia/Ho_Chi_Minh"/></label>
+    <label>Giờ bắt đầu ca<input type="time" name="work_start_time" required value={settings?.work_start_time?.slice(0,5)||'08:00'}/></label>
+    <label>Giờ kết thúc ca<input type="time" name="work_end_time" required value={settings?.work_end_time?.slice(0,5)||'17:00'}/></label>
+    <label class="wide">Ngày nghỉ lễ (YYYY-MM-DD, phân tách bằng dấu phẩy)<input name="holidays" value={holidays} placeholder="2026-01-01, 2026-04-30"/></label>
+    <p class="wide small muted">Ca qua đêm: ngày chấm công là ngày địa phương lúc nhân viên chấm công vào. Giờ ra có thể nằm vào ngày kế tiếp. Ngày nghỉ lễ được lưu cho báo cáo; hệ thống không tự gán trạng thái Off.</p>
+    <div class="wide form-actions"><button class="primary">Lưu cài đặt</button></div>
+  </form></section>
+  <script>
+    document.querySelector<HTMLFormElement>('[data-settings]')!.addEventListener('submit',async(event)=>{event.preventDefault();const form=event.currentTarget as HTMLFormElement;const data=Object.fromEntries(new FormData(form));const holidays=String(data.holidays||'').split(',').map(x=>x.trim()).filter(Boolean);const res=await fetch('/api/admin/settings',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,holidays})});const result=await res.json();const notice=document.querySelector<HTMLElement>('[data-setting-message]')!;notice.className=res.ok?'notice':'notice error';notice.textContent=res.ok?'Đã lưu cài đặt.':result.error;notice.hidden=false;});
+  </script>
+</AppLayout>

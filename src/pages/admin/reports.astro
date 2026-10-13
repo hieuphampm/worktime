@@ -1,0 +1,18 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { serviceClient } from '../../lib/supabase/server';
+import { departments } from '../../lib/admin-data';
+const [{data:people},{data:settings},deps]=await Promise.all([serviceClient().from('profiles').select('id,employee_id,display_name').eq('role','EMPLOYEE').order('display_name'),serviceClient().from('company_settings').select('timezone').eq('id',1).single(),departments()]);
+const zone=settings?.timezone||'Asia/Ho_Chi_Minh'; const month=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit'}).format(new Date()); const [year,mon]=month.split('-'); const start=`${month}-01`; const end=new Date(Number(year),Number(mon),0).toISOString().slice(0,10);
+---
+<AppLayout title="Báo cáo chấm công" profile={Astro.locals.profile} active="/admin/reports">
+  <header class="page-head"><div><div class="eyebrow">Quản trị · Phân tích</div><h1>Báo cáo & xuất Excel</h1><p>Chọn kỳ báo cáo và bộ lọc. Báo cáo được tạo phía máy chủ.</p></div></header>
+  <section class="form-panel"><h2>Bộ lọc báo cáo</h2><form class="form-grid" data-report>
+    <label>Ngày bắt đầu<input type="date" name="from" value={start} required/></label><label>Ngày kết thúc<input type="date" name="to" value={end} required/></label>
+    <label>Nhân viên<select name="employee"><option value="">Tất cả nhân viên</option>{(people||[]).map(person=><option value={person.id}>{person.employee_id} · {person.display_name}</option>)}</select></label>
+    <label>Trạng thái<select name="status"><option value="">Tất cả trạng thái</option><option value="FULL_DAY">Đủ công</option><option value="HALF_DAY">Nửa buổi</option><option value="OFF">Off</option></select></label>
+    <label>Phòng ban<select name="department"><option value="">Tất cả phòng ban</option>{deps.map(d=><option value={d}>{d}</option>)}</select></label><div class="wide small muted">Múi giờ báo cáo: {zone}. Tệp bao gồm trang dữ liệu và trang tổng hợp.</div><div class="wide form-actions"><button class="primary" type="submit">Tải báo cáo Excel</button></div>
+  </form></section>
+  <section class="panel" style="padding:20px"><h2 style="font-size:14px;margin-top:0">Nội dung báo cáo</h2><div class="settings-row"><span>Dữ liệu chi tiết</span><strong>12 cột thông tin chấm công</strong></div><div class="settings-row"><span>Tổng hợp</span><strong>Ngày công, tín dụng, nhân viên và kỳ báo cáo</strong></div><div class="settings-row"><span>Giới hạn truy vấn</span><strong>100.000 bản ghi</strong></div><div class="settings-row"><span>Giới hạn tải xuống</span><strong>4,3 MB mỗi tệp</strong></div></section>
+  <script>document.querySelector<HTMLFormElement>('[data-report]')!.addEventListener('submit',(event)=>{event.preventDefault();const form=event.currentTarget as HTMLFormElement;const params=new URLSearchParams(new FormData(form) as never);window.location.assign(`/api/admin/export?${params.toString()}`);});</script>
+</AppLayout>

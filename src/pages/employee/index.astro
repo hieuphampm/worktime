@@ -1,0 +1,33 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { serviceClient } from '../../lib/supabase/server';
+import { companyDate } from '../../lib/attendance';
+import { serverEnv } from '../../lib/env';
+const db = serviceClient();
+const [{data:settings},{data:profile}] = await Promise.all([db.from('company_settings').select('*').eq('id',1).single(), db.from('profiles').select('*').eq('id',Astro.locals.user!.id).single()]);
+const today = companyDate(new Date(),settings?.timezone||serverEnv().timezone);
+const {data:record} = await db.from('attendance').select('*').eq('employee_id',Astro.locals.user!.id).eq('attendance_date',today).maybeSingle();
+const {data:history} = await db.from('attendance').select('*').eq('employee_id',Astro.locals.user!.id).order('attendance_date',{ascending:false}).limit(5);
+const zone = settings?.timezone||'Asia/Ho_Chi_Minh'; const fmt=(v:string|null)=>v?new Date(v).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',timeZone:zone}):'—';
+const statusText=record?.status==='FULL_DAY'?'Đủ công':record?.status==='HALF_DAY'?'Nửa buổi':record?.status==='OFF'?'Off':'Chưa phân loại';
+---
+<AppLayout title="Trang nhân viên" profile={Astro.locals.profile} active="/employee">
+  <header class="page-head"><div><div class="eyebrow">Khu vực nhân viên</div><h1>Xin chào, {profile?.display_name}</h1><p>Mã nhân viên {profile?.employee_id} · {profile?.department||'Chưa phân phòng ban'}</p></div><a class="secondary" href="/employee/history">Lịch sử của tôi →</a></header>
+  <section class="hero-card"><div><div class="eyebrow" style="color:#ffffffbb">CHẤM CÔNG HÔM NAY · {today}</div><h2>{record?.check_out_at?'Bạn đã hoàn tất ngày làm việc.':record?.check_in_at?'Bạn đã chấm công vào.':'Sẵn sàng bắt đầu ngày làm việc?'}</h2><p>Chấm công được ghi nhận theo giờ máy chủ công ty.</p><div class="action-row"><button class="primary" data-attendance="check-in" disabled={!!record?.check_in_at}>Chấm công vào</button><button class="secondary" data-attendance="check-out" disabled={!record?.check_in_at||!!record?.check_out_at}>Chấm công ra</button></div></div><div><div class="hero-time" data-clock>--:--:--<small>Giờ công ty · {zone}</small></div><div class="checkin-meta"><div><span>Giờ vào</span><strong>{fmt(record?.check_in_at||null)}</strong></div><div><span>Giờ ra</span><strong>{fmt(record?.check_out_at||null)}</strong></div><div><span>Trạng thái</span><strong>{statusText}</strong></div></div></div></section>
+  <div class="notice" data-notice-area hidden></div>
+  <section class="table-panel"><div class="panel-title"><h2>Lịch sử gần đây</h2><span>5 ngày gần nhất có dữ liệu</span></div><div class="table-scroll"><table><thead><tr><th>Ngày</th><th>Giờ vào</th><th>Giờ ra</th><th>Thời lượng</th><th>Trạng thái</th><th>Công</th></tr></thead><tbody>
+  {(history||[]).map(r=><tr><td><strong>{r.attendance_date}</strong></td><td>{fmt(r.check_in_at)}</td><td>{fmt(r.check_out_at)}</td><td>{r.working_duration_minutes===null?'Chưa hoàn tất':`${Math.floor(r.working_duration_minutes/60)}g ${r.working_duration_minutes%60}p`}</td><td>{r.status==='FULL_DAY'?'Đủ công':r.status==='HALF_DAY'?'Nửa buổi':r.status==='OFF'?'Off':'Chưa phân loại'}</td><td>{r.attendance_credit??'—'}</td></tr>)}
+  {!history?.length&&<tr><td colspan="6"><div class="empty">Bạn chưa có lịch sử chấm công.</div></td></tr>}
+  </tbody></table></div></section>
+  <script>
+    const clock = document.querySelector<HTMLElement>('[data-clock]')!;
+    const timezone = clock.querySelector('small')?.textContent?.replace('Giờ công ty · ','') || 'Asia/Ho_Chi_Minh';
+    const tick = () => { clock.childNodes[0]!.textContent = new Intl.DateTimeFormat('vi-VN',{timeZone:timezone,hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date()); };
+    tick(); window.setInterval(tick,1000);
+    document.querySelectorAll<HTMLButtonElement>('[data-attendance]').forEach((button)=>button.addEventListener('click',async()=>{
+      button.disabled=true; const original=button.textContent; button.textContent='Đang xử lý…'; const notice=document.querySelector<HTMLElement>('[data-notice-area]')!;
+      try { const res=await fetch('/api/attendance/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:button.dataset.attendance})}); const result=await res.json(); if(!res.ok) throw new Error(result.error); notice.textContent=button.dataset.attendance==='check-in'?'Chấm công vào thành công.':'Chấm công ra thành công.'; notice.hidden=false; window.setTimeout(()=>window.location.reload(),700); }
+      catch(error){notice.classList.add('error');notice.textContent=error instanceof Error?error.message:'Không thể chấm công';notice.hidden=false;button.disabled=false;button.textContent=original;}
+    }));
+  </script>
+</AppLayout>
