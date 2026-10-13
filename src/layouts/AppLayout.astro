@@ -12,6 +12,7 @@ const adminLinks = [ ['/admin', 'Tổng quan'], ['/admin/attendance', 'Chấm c�
       <a class="brand" href={profile.role === 'ADMIN' ? '/admin' : '/employee'}><span class="brand-mark">W</span><span>workday<small>ATTENDANCE</small></span></a>
       <div class="side-caption">MENU</div>
       {profile.role === 'ADMIN' ? <nav>{adminLinks.map(([href, label]) => <a class:list-active={active === href} href={href}><span class="nav-dot"></span>{label}</a>)}</nav> : <nav><a class:list-active={active === '/employee'} href="/employee"><span class="nav-dot"></span>Tổng quan</a><a href="/employee/history"><span class="nav-dot"></span>Lịch sử của tôi</a></nav>}
+      <div class="side-caption">TÀI KHOẢN</div><nav><a class:list-active={active === '/account/password'} href="/account/password"><span class="nav-dot"></span>Đổi mật khẩu</a></nav>
       <div class="sidebar-bottom"><div class="avatar">{profile.display_name.slice(0, 1).toLocaleUpperCase()}</div><div class="user-mini"><strong>{profile.display_name}</strong><span>{profile.role === 'ADMIN' ? 'Quản trị viên' : profile.employee_id}</span></div><form method="post" action="/api/auth/logout"><button class="icon-button" aria-label="Đăng xuất" title="Đăng xuất">↗</button></form></div>
     </aside>}
     <main class={profile ? 'main-content' : 'main-content main-guest'}><slot /></main>

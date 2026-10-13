@@ -11,7 +11,7 @@ export async function attendancePage(filter: AttendanceFilter) {
   const pageSize = Math.min(100, Math.max(1, filter.pageSize || 20));
   let matchingIds: string[] | null = null;
   if (filter.department || filter.search) {
-    let peopleQuery = db.from('profiles').select('id,employee_id,display_name,department').eq('role', 'EMPLOYEE');
+    let peopleQuery = db.from('profiles').select('id,employee_id,display_name,department').eq('role', 'EMPLOYEE').is('deleted_at', null);
     if (filter.department) peopleQuery = peopleQuery.eq('department', filter.department);
     if (filter.search) peopleQuery = peopleQuery.or(`employee_id.ilike.%${filter.search.replace(/[,%()]/g, '')}%,display_name.ilike.%${filter.search.replace(/[,%()]/g, '')}%`);
     const { data: people, error: peopleError } = await peopleQuery;
@@ -34,7 +34,7 @@ export async function attendancePage(filter: AttendanceFilter) {
 }
 
 export async function departments() {
-  const { data, error } = await serviceClient().from('profiles').select('department').not('department', 'is', null).eq('is_active', true);
+  const { data, error } = await serviceClient().from('profiles').select('department').not('department', 'is', null).eq('is_active', true).is('deleted_at', null);
   if (error) throw error;
   return [...new Set((data || []).map((x) => x.department).filter((x): x is string => Boolean(x)))].sort();
 }

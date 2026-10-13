@@ -2,7 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import { serviceClient } from '../../lib/supabase/server';
 import { departments } from '../../lib/admin-data';
-const [{data:people},{data:settings},deps]=await Promise.all([serviceClient().from('profiles').select('id,employee_id,display_name').eq('role','EMPLOYEE').order('display_name'),serviceClient().from('company_settings').select('timezone').eq('id',1).single(),departments()]);
+const [{data:people},{data:settings},deps]=await Promise.all([serviceClient().from('profiles').select('id,employee_id,display_name').eq('role','EMPLOYEE').is('deleted_at',null).order('display_name'),serviceClient().from('company_settings').select('timezone').eq('id',1).single(),departments()]);
 const zone=settings?.timezone||'Asia/Ho_Chi_Minh'; const month=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit'}).format(new Date()); const [year,mon]=month.split('-'); const start=`${month}-01`; const end=new Date(Number(year),Number(mon),0).toISOString().slice(0,10);
 ---
 <AppLayout title="Báo cáo chấm công" profile={Astro.locals.profile} active="/admin/reports">

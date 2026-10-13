@@ -2,7 +2,7 @@ export type AttendanceStatus = 'FULL_DAY' | 'HALF_DAY' | 'OFF';
 export type Role = 'ADMIN' | 'EMPLOYEE';
 export type Profile = {
   id: string; employee_id: string; display_name: string; email: string | null;
-  role: Role; department: string | null; is_active: boolean; created_at: string; updated_at: string;
+  role: Role; department: string | null; is_active: boolean; deleted_at: string | null; created_at: string; updated_at: string;
 };
 export type Attendance = {
   id: string; employee_id: string; attendance_date: string; check_in_at: string | null;

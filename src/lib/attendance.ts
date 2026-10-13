@@ -6,6 +6,10 @@ export function creditFor(status: 'FULL_DAY' | 'HALF_DAY' | 'OFF'): number {
   return status === 'FULL_DAY' ? 1 : status === 'HALF_DAY' ? 0.5 : 0;
 }
 
+export function statusForWorkDuration(minutes: number): 'FULL_DAY' | 'HALF_DAY' {
+  return minutes >= 9 * 60 ? 'FULL_DAY' : 'HALF_DAY';
+}
+
 export function minutesBetween(start: string, end: string): number {
   const duration = Math.floor((Date.parse(end) - Date.parse(start)) / 60_000);
   if (!Number.isFinite(duration) || duration < 0) throw new Error('Thời điểm không hợp lệ');

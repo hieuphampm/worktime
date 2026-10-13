@@ -7,7 +7,7 @@ const db = serviceClient();
 const { data: settings } = await db.from('company_settings').select('*').eq('id',1).single();
 const today = companyDate(new Date(), settings?.timezone || serverEnv().timezone);
 const [{count: employees}, checkedIn, checkedOut, fullDay, halfDay, off, incomplete, {data: recent}] = await Promise.all([
-  db.from('profiles').select('*', {count:'exact', head:true}).eq('role','EMPLOYEE').eq('is_active',true),
+  db.from('profiles').select('*', {count:'exact', head:true}).eq('role','EMPLOYEE').eq('is_active',true).is('deleted_at',null),
   db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).not('check_in_at','is',null),
   db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).not('check_out_at','is',null),
   db.from('attendance').select('*',{count:'exact',head:true}).eq('attendance_date',today).eq('status','FULL_DAY'),

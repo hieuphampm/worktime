@@ -4,7 +4,7 @@ import { body, json, sameOrigin, safeError } from '../../../lib/http';
 import { z } from 'zod';
 
 export const prerender = false;
-const schema = z.object({ email: z.email().max(254), password: z.string().min(12).max(128), employee_id: z.string().trim().min(1).max(32), display_name: z.string().trim().min(1).max(120), department: z.string().trim().max(100).optional(), role: z.enum(['ADMIN','EMPLOYEE']).default('EMPLOYEE') });
+const schema = z.object({ email: z.email().max(254), password: z.string().min(1).max(128), employee_id: z.string().trim().min(1).max(32), display_name: z.string().trim().min(1).max(120), department: z.string().trim().max(100).optional(), role: z.enum(['ADMIN','EMPLOYEE']).default('EMPLOYEE') });
 export const POST: APIRoute = async (context) => {
   if (!sameOrigin(context.request)) return json({ error: 'Yêu cầu không hợp lệ' }, 403);
   const auth = await requireAdmin(context);
@@ -30,9 +30,12 @@ export const PATCH: APIRoute = async (context) => {
   const auth = await requireAdmin(context);
   if (auth.error) return auth.error;
   try {
-    const input = z.object({ id: z.uuid(), employee_id: z.string().trim().min(1).max(32), display_name: z.string().trim().min(1).max(120), department: z.string().trim().max(100).nullable(), is_active: z.boolean(), password: z.string().min(12).max(128).optional() }).parse(await body(context.request));
+    const input = z.object({ id: z.uuid(), employee_id: z.string().trim().min(1).max(32), display_name: z.string().trim().min(1).max(120), department: z.string().trim().max(100).nullable(), is_active: z.boolean(), password: z.string().min(1).max(128).optional() }).parse(await body(context.request));
     if (input.id === auth.user!.id && !input.is_active) return json({ error: 'Không thể tự vô hiệu hóa tài khoản đang sử dụng.' }, 400);
     const db=serviceClient();
+    const { data: existing, error: lookupError } = await db.from('profiles').select('deleted_at').eq('id', input.id).maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!existing || existing.deleted_at) return json({ error: 'Tài khoản không tồn tại hoặc đã bị xóa.' }, 404);
     const profileUpdate={employee_id:input.employee_id,display_name:input.display_name,department:input.department,is_active:input.is_active};
     const updateAuth=async(ban_duration?:string)=>{
       const attributes={...(ban_duration?{ban_duration}:{}),...(input.password?{password:input.password}:{})};
@@ -46,6 +49,29 @@ export const PATCH: APIRoute = async (context) => {
     } else {
       await updateAuth('none');
       const {error}=await db.from('profiles').update(profileUpdate).eq('id',input.id);if(error)throw error;
+    }
+    return json({ ok: true });
+  } catch (error) { return json({ error: safeError(error) }, 400); }
+};
+
+export const DELETE: APIRoute = async (context) => {
+  if (!sameOrigin(context.request)) return json({ error: 'Yêu cầu không hợp lệ' }, 403);
+  const auth = await requireAdmin(context);
+  if (auth.error) return auth.error;
+  try {
+    const { id } = z.object({ id: z.uuid() }).parse(await body(context.request));
+    if (id === auth.user!.id) return json({ error: 'Không thể xóa tài khoản quản trị viên đang sử dụng.' }, 400);
+    const db = serviceClient();
+    const { data: profile, error: lookupError } = await db.from('profiles').select('id,deleted_at').eq('id', id).maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!profile || profile.deleted_at) return json({ error: 'Tài khoản không tồn tại hoặc đã bị xóa.' }, 404);
+
+    const { error: banError } = await db.auth.admin.updateUserById(id, { ban_duration: '876000h' });
+    if (banError) throw banError;
+    const { error: updateError } = await db.from('profiles').update({ is_active: false, deleted_at: new Date().toISOString() }).eq('id', id);
+    if (updateError) {
+      await db.auth.admin.updateUserById(id, { ban_duration: 'none' });
+      throw updateError;
     }
     return json({ ok: true });
   } catch (error) { return json({ error: safeError(error) }, 400); }
