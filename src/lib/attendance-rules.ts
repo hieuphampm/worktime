@@ -23,7 +23,7 @@ export function prepareAdminCorrection(input: { status: AttendanceStatus | null;
   if (input.reason.trim().length < 4) throw new Error('Lý do hiệu chỉnh phải có ít nhất 4 ký tự.');
   if (input.checkOut && (!input.checkIn || Date.parse(input.checkOut) < Date.parse(input.checkIn))) throw new Error('Thời điểm chấm công ra phải sau chấm công vào.');
   const workingDuration = input.checkIn && input.checkOut ? minutesBetween(input.checkIn, input.checkOut) : null;
-  const status = workingDuration === null ? input.status : statusForWorkDuration(workingDuration);
+  const status = input.status ?? (workingDuration === null ? null : statusForWorkDuration(workingDuration));
   return { check_in_at: input.checkIn, check_out_at: input.checkOut,
     working_duration_minutes: workingDuration,
     status, attendance_credit: status ? creditFor(status) : null,

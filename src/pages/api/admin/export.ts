@@ -10,7 +10,14 @@ export const GET: APIRoute = async (context) => {
   if (auth.error) return auth.error;
   try {
     const params = context.url.searchParams;
-    const filters=z.object({from:z.iso.date().nullable(),to:z.iso.date().nullable(),employee:z.uuid().nullable(),status:z.enum(['FULL_DAY','HALF_DAY','OFF']).nullable(),department:z.string().max(100).nullable()}).safeParse({from:params.get('from'),to:params.get('to'),employee:params.get('employee'),status:params.get('status'),department:params.get('department')});
+    const blankToNull = (value: unknown) => value === '' ? null : value;
+    const filters=z.object({
+      from:z.preprocess(blankToNull,z.iso.date().nullable()),
+      to:z.preprocess(blankToNull,z.iso.date().nullable()),
+      employee:z.preprocess(blankToNull,z.uuid().nullable()),
+      status:z.preprocess(blankToNull,z.enum(['FULL_DAY','HALF_DAY','OFF']).nullable()),
+      department:z.preprocess(blankToNull,z.string().max(100).nullable()),
+    }).safeParse({from:params.get('from'),to:params.get('to'),employee:params.get('employee'),status:params.get('status'),department:params.get('department')});
     if(!filters.success)return new Response('Bộ lọc báo cáo không hợp lệ',{status:400});
     const {from,to,employee,status,department}=filters.data;
     if(from&&to&&from>to)return new Response('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',{status:400});
